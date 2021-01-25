@@ -1,0 +1,7 @@
+# Word
+~$*.doc*
+~$*.docx*
+
+#Visio
+~$*.vsd*
+~$*.vsdx*
