@@ -15,8 +15,8 @@
 
 #define NONHOME_MASK        0xFC
 
-#define LONG_INSTR_DELAY    2000
-#define SHORT_INSTR_DELAY   50
+//#define LONG_INSTR_DELAY    2000
+//#define SHORT_INSTR_DELAY   50
 
 uint_fast8_t RS_Port, EN_Port, DB_Port;
 uint_fast16_t RS_Pin, EN_Pin;
@@ -112,26 +112,16 @@ void initLCD(void)
 {
     delayMilliSec(40);
     // 8-bit, 2-line, 5x8 font
-//    commandInstruction(0x038);
     commandInstruction(FUNCTION_SET_MASK | DL_FLAG_MASK | N_FLAG_MASK);
     delayMilliSec(5);
     // Display off
     commandInstruction(DISPLAY_CTRL_MASK);
-//    commandInstruction(0x008);
     delayMicroSec(150);
     // Display clear
-//    commandInstruction(0x001);
     commandInstruction(CLEAR_DISPLAY_MASK);
     delayMicroSec(SHORT_INSTR_DELAY);
     // Entry mode: cursor increment and no shift
-//    commandInstruction(0x006);
     commandInstruction(ENTRY_MODE_MASK | ID_FLAG_MASK);
-    delayMicroSec(SHORT_INSTR_DELAY);
-//    commandInstruction(XXXX);
-    delayMicroSec(SHORT_INSTR_DELAY);
-//    commandInstruction(XXXX);
-    delayMicroSec(SHORT_INSTR_DELAY);
-//    commandInstruction(XXXX);
     // Initialization complete, turn ON display
     delayMicroSec(LONG_INSTR_DELAY);
     commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK);
@@ -140,6 +130,18 @@ void initLCD(void)
 void printChar(char character)
 {
     dataInstruction(character);
+}
+
+void printString(char *chars, int length)
+{
+    int i;
+    for (i = 0; i < length; i++)
+    {
+        if (chars[i] != 0)
+        {
+            printChar(chars[i]);
+        }
+    }
 }
 
 // TODO: printString?

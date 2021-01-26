@@ -35,6 +35,7 @@
 static volatile uint16_t curADCResult;
 static volatile float normalizedADCRes;
 bool usePotentiometerCircuit;
+bool update;
 
 // A14->55->P6.1
 // A15->54->P6.0
@@ -46,11 +47,6 @@ void setup(void)
     /* Stop Watchdog  */
     MAP_WDT_A_holdTimer();
 
-    // LCD init
-    configLCD(GPIO_PORT_P3, GPIO_PIN3, GPIO_PORT_P3, GPIO_PIN2, GPIO_PORT_P4);
-    initDelayTimer(CS_getMCLK());
-    initLCD();
-
     // ADC init
     curADCResult = 0;
     usePotentiometerCircuit = true;
@@ -60,13 +56,12 @@ void setup(void)
 
     /* Setting DCO to 48MHz  */
     MAP_PCM_setPowerState(PCM_AM_LDO_VCORE1);
-    MAP_CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_48);
+//    MAP_CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_48);
 
     /* Enabling the FPU for floating point operation */
     MAP_FPU_enableModule();
     MAP_FPU_enableLazyStacking();
 
-    //![Single Sample Mode Configure]
     /* Initializing ADC (MCLK/1/4) */
     MAP_ADC14_enableModule();
     MAP_ADC14_initModule(ADC_CLOCKSOURCE_MCLK, ADC_PREDIVIDER_1, ADC_DIVIDER_4,
@@ -97,50 +92,61 @@ void setup(void)
     MAP_ADC14_enableInterrupt(ADC_INT14);
     MAP_ADC14_enableInterrupt(ADC_INT15);
     MAP_Interrupt_enableInterrupt(INT_ADC14);
-    MAP_Interrupt_enableMaster();
 
-    // 1s period?
-    SysTick_enableModule();
-    SysTick_setPeriod(3000000);
+    // 1s periodic Timer32
+    Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
+    TIMER32_PERIODIC_MODE);
+    Timer32_setCount(TIMER32_0_BASE, CS_getMCLK());
+    Timer32_enableInterrupt(TIMER32_0_BASE);
+//    TIMER32_1->INTCLR = 0;
+    Timer32_startTimer(TIMER32_0_BASE, false);
+    update = true;
+
+    // LCD init
+    configLCD(GPIO_PORT_P3, GPIO_PIN3, GPIO_PORT_P3, GPIO_PIN2, GPIO_PORT_P4);
+    initDelayTimer(CS_getMCLK());
+    initLCD();
+
+    MAP_Interrupt_enableMaster();
 }
 
 void loop(void)
 {
-    // TODO systick, update LCD using values?
-    while (((SysTick->CTRL) & SysTick_CTRL_COUNTFLAG_Msk) == 0)
+//    while(!update)
+    while (TIMER32_1->VALUE > 1000)
     {
-        // TODO start at beginning
-        if (usePotentiometerCircuit)
-        {
-            printChar('P');
-            printChar('o');
-            printChar('t');
-        }
-        else
-        {
-            printChar('P');
-            printChar('h');
-            printChar('o');
-            printChar('t');
-            printChar('o');
-        }
-        printChar(':');
-        printChar(' ');
-        // https://stackoverflow.com/questions/46006861/converting-int-to-char-in-c
-        // TODO int to char
-        // TODO new line
-        normalizedADCRes = (curADCResult * 3.3) / 16384;
-        printChar('A');
-        printChar('n');
-        printChar('a');
-        printChar('l');
-        printChar('o');
-        printChar('g');
-        printChar(':');
-        // TODO int to char
-        printChar(' ');
-        printChar('V');
     }
+    update = false;
+    commandInstruction(CLEAR_DISPLAY_MASK);
+//    delayMicroSec(SHORT_INSTR_DELAY);
+    commandInstruction(RETURN_HOME_MASK);
+//    delayMicroSec(LONG_INSTR_DELAY);
+
+    if (usePotentiometerCircuit)
+    {
+        printChar('P');
+        printChar('o');
+        printChar('t');
+    }
+    else
+    {
+        printChar('P');
+        printChar('h');
+        printChar('o');
+        printChar('t');
+        printChar('o');
+    }
+    char dnum[7];
+    sprintf(dnum, ": %d", curADCResult);
+    printString(dnum, 7);
+    commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+
+    normalizedADCRes = (curADCResult * 3.3) / 16384;
+    char anum[13];
+    sprintf(anum, "Analog: %f", normalizedADCRes);
+    printString(anum, 13);
+    printChar(' ');
+    printChar('V');
 }
 
 int main(void)
@@ -149,9 +155,7 @@ int main(void)
 
     while (1)
     {
-//        loop();
-
-//        MAP_PCM_gotoLPM0();
+        loop();
     }
 }
 
@@ -177,11 +181,14 @@ void ADC14_IRQHandler(void)
     {
         if (usePotentiometerCircuit)
         {
+            // Max: ~16383, Min: ~0
             curADCResult = MAP_ADC14_getResult(ADC_MEM15);
         }
 
         MAP_ADC14_toggleConversionTrigger();
     }
+//    normalizedADCRes = (curADCResult * 3.3) / 16384;
+//    update = true;
 }
 
 /*!
@@ -201,4 +208,12 @@ void PORT1_IRQHandler(void)
     {
         usePotentiometerCircuit = !usePotentiometerCircuit;
     }
+}
+
+void T32_INT1_IRQHandler(void)
+{
+    // write to clear register
+    TIMER32_1->INTCLR = 1;
+    update = true;
+
 }

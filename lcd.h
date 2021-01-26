@@ -26,6 +26,9 @@ extern "C"
 #define LINE1_OFFSET    0x0
 #define LINE2_OFFSET    0x40
 
+#define LONG_INSTR_DELAY    2000
+#define SHORT_INSTR_DELAY   50
+
 /* Instruction masks */
 #define CLEAR_DISPLAY_MASK  0x01
 #define RETURN_HOME_MASK    0x02
@@ -127,6 +130,10 @@ extern void initLCD(void);
  *  \return None
  */
 extern void printChar(char character);
+
+extern void printString(char* chars, int length);
+
+extern void commandInstruction(uint8_t command);
 
 //*****************************************************************************
 //
