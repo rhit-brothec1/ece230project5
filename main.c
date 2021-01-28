@@ -36,78 +36,90 @@ static volatile uint16_t curADCResult;
 static volatile float normalizedADCRes;
 bool usePotentiometerCircuit;
 bool update;
-
-// A14->55->P6.1
-// A15->54->P6.0
+bool debounced;
 
 void setup(void)
 {
+    curADCResult = 0;
+    usePotentiometerCircuit = true;
+    update = true;
+    debounced = true;
+
     Switch_init();
 
     /* Stop Watchdog  */
-    MAP_WDT_A_holdTimer();
+    WDT_A_holdTimer();
 
     // ADC init
-    curADCResult = 0;
-    usePotentiometerCircuit = true;
+
     /* Setting Flash wait state */
-    MAP_FlashCtl_setWaitState(FLASH_BANK0, 1);
-    MAP_FlashCtl_setWaitState(FLASH_BANK1, 1);
+    FlashCtl_setWaitState(FLASH_BANK0, 1);
+    FlashCtl_setWaitState(FLASH_BANK1, 1);
 
     /* Setting DCO to 48MHz  */
-    MAP_PCM_setPowerState(PCM_AM_LDO_VCORE1);
-//    MAP_CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_48);
+//    PCM_setPowerState(PCM_AM_LDO_VCORE1);
+//    CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_48);
 
     /* Enabling the FPU for floating point operation */
-    MAP_FPU_enableModule();
-    MAP_FPU_enableLazyStacking();
+    FPU_enableModule();
+    FPU_enableLazyStacking();
 
     /* Initializing ADC (MCLK/1/4) */
-    MAP_ADC14_enableModule();
-    MAP_ADC14_initModule(ADC_CLOCKSOURCE_MCLK, ADC_PREDIVIDER_1, ADC_DIVIDER_4,
+    ADC14_enableModule();
+    ADC14_initModule(ADC_CLOCKSOURCE_MCLK, ADC_PREDIVIDER_1, ADC_DIVIDER_4,
                          0);
 
     /* Configuring GPIOs (6.0, 6.1; A15, A14) */
-    MAP_GPIO_setAsPeripheralModuleFunctionInputPin(
+    GPIO_setAsPeripheralModuleFunctionInputPin(
             GPIO_PORT_P6, GPIO_PIN0 | GPIO_PIN1,
             GPIO_TERTIARY_MODULE_FUNCTION);
 
     /* Configuring ADC Memory */
-    MAP_ADC14_configureMultiSequenceMode(ADC_MEM14, ADC_MEM15, true);
-    MAP_ADC14_configureConversionMemory(ADC_MEM14, ADC_VREFPOS_AVCC_VREFNEG_VSS,
+    ADC14_configureMultiSequenceMode(ADC_MEM14, ADC_MEM15, true);
+    ADC14_configureConversionMemory(ADC_MEM14, ADC_VREFPOS_AVCC_VREFNEG_VSS,
     ADC_INPUT_A14,
                                         false);
-    MAP_ADC14_configureConversionMemory(ADC_MEM15, ADC_VREFPOS_AVCC_VREFNEG_VSS,
+    ADC14_configureConversionMemory(ADC_MEM15, ADC_VREFPOS_AVCC_VREFNEG_VSS,
     ADC_INPUT_A15,
                                         false);
 
     /* Configuring Sample Timer */
-    MAP_ADC14_enableSampleTimer(ADC_MANUAL_ITERATION);
+    ADC14_enableSampleTimer(ADC_MANUAL_ITERATION);
 
     /* Enabling/Toggling Conversion */
-    MAP_ADC14_enableConversion();
-    MAP_ADC14_toggleConversionTrigger();
+    ADC14_enableConversion();
+    ADC14_toggleConversionTrigger();
 
     /* Enabling interrupts */
-    MAP_ADC14_enableInterrupt(ADC_INT14);
-    MAP_ADC14_enableInterrupt(ADC_INT15);
-    MAP_Interrupt_enableInterrupt(INT_ADC14);
+    ADC14_enableInterrupt(ADC_INT14);
+    ADC14_enableInterrupt(ADC_INT15);
+    Interrupt_enableInterrupt(INT_ADC14);
+
 
     // 1s periodic Timer32
     Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
     TIMER32_PERIODIC_MODE);
     Timer32_setCount(TIMER32_0_BASE, CS_getMCLK());
     Timer32_enableInterrupt(TIMER32_0_BASE);
-//    TIMER32_1->INTCLR = 0;
+    TIMER32_1->INTCLR = 1;
     Timer32_startTimer(TIMER32_0_BASE, false);
-    update = true;
+
+    // 5ms TimerA
+    const Timer_A_UpModeConfig upConfig = { TIMER_A_CLOCKSOURCE_SMCLK,
+                                                TIMER_A_CLOCKSOURCE_DIVIDER_1,
+                                                15000,
+                                                TIMER_A_TAIE_INTERRUPT_DISABLE,
+                                                TIMER_A_CCIE_CCR0_INTERRUPT_ENABLE,
+                                                TIMER_A_DO_CLEAR };
+    Timer_A_configureUpMode(TIMER_A2_BASE, &upConfig);
+    Timer_A_enableInterrupt(INT_TA2_0);
 
     // LCD init
     configLCD(GPIO_PORT_P3, GPIO_PIN3, GPIO_PORT_P3, GPIO_PIN2, GPIO_PORT_P4);
     initDelayTimer(CS_getMCLK());
     initLCD();
 
-    MAP_Interrupt_enableMaster();
+    Interrupt_enableMaster();
 }
 
 void loop(void)
@@ -118,9 +130,9 @@ void loop(void)
     }
     update = false;
     commandInstruction(CLEAR_DISPLAY_MASK);
-//    delayMicroSec(SHORT_INSTR_DELAY);
+    delayMicroSec(SHORT_INSTR_DELAY);
     commandInstruction(RETURN_HOME_MASK);
-//    delayMicroSec(LONG_INSTR_DELAY);
+    delayMicroSec(LONG_INSTR_DELAY);
 
     if (usePotentiometerCircuit)
     {
@@ -174,7 +186,7 @@ void ADC14_IRQHandler(void)
             curADCResult = MAP_ADC14_getResult(ADC_MEM14);
         }
 
-        MAP_ADC14_toggleConversionTrigger();
+        ADC14_toggleConversionTrigger();
     }
     // Potentiometer
     if (ADC_INT15 & status)
@@ -185,7 +197,7 @@ void ADC14_IRQHandler(void)
             curADCResult = MAP_ADC14_getResult(ADC_MEM15);
         }
 
-        MAP_ADC14_toggleConversionTrigger();
+        ADC14_toggleConversionTrigger();
     }
 //    normalizedADCRes = (curADCResult * 3.3) / 16384;
 //    update = true;
@@ -204,9 +216,14 @@ void PORT1_IRQHandler(void)
     uint32_t status = GPIO_getEnabledInterruptStatus(GPIO_PORT_P1);
     GPIO_clearInterruptFlag(GPIO_PORT_P1, status);
 
-    if (status & SWITCH_PIN)
+    if (debounced)
     {
-        usePotentiometerCircuit = !usePotentiometerCircuit;
+        if (status & SWITCH_PIN)
+        {
+            usePotentiometerCircuit = !usePotentiometerCircuit;
+        }
+//        debounced = false;
+        Timer_A_startCounter(TIMER_A2_BASE, TIMER_A_UP_MODE);
     }
 }
 
@@ -216,4 +233,12 @@ void T32_INT1_IRQHandler(void)
     TIMER32_1->INTCLR = 1;
     update = true;
 
+}
+
+void TA2_0_IRQHandler(void)
+{
+    debounced = true;
+//    Timer_A_stopTimer(TIMER_A0_BASE);
+    Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE,
+                                             TIMER_A_CAPTURECOMPARE_REGISTER_0);
 }
