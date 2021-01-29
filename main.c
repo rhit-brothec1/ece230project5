@@ -59,29 +59,28 @@ void setup(void)
     /* Setting DCO to 48MHz  */
 //    PCM_setPowerState(PCM_AM_LDO_VCORE1);
 //    CS_setDCOCenteredFrequency(CS_DCO_FREQUENCY_48);
-
     /* Enabling the FPU for floating point operation */
     FPU_enableModule();
     FPU_enableLazyStacking();
 
     /* Initializing ADC (MCLK/1/4) */
     ADC14_enableModule();
-    ADC14_initModule(ADC_CLOCKSOURCE_MCLK, ADC_PREDIVIDER_1, ADC_DIVIDER_4,
-                         0);
+    ADC14_initModule(ADC_CLOCKSOURCE_MCLK, ADC_PREDIVIDER_1, ADC_DIVIDER_4, 0);
 
     /* Configuring GPIOs (6.0, 6.1; A15, A14) */
     GPIO_setAsPeripheralModuleFunctionInputPin(
-            GPIO_PORT_P6, GPIO_PIN0 | GPIO_PIN1,
-            GPIO_TERTIARY_MODULE_FUNCTION);
+    GPIO_PORT_P6,
+                                               GPIO_PIN0 | GPIO_PIN1,
+                                               GPIO_TERTIARY_MODULE_FUNCTION);
 
     /* Configuring ADC Memory */
     ADC14_configureMultiSequenceMode(ADC_MEM14, ADC_MEM15, true);
     ADC14_configureConversionMemory(ADC_MEM14, ADC_VREFPOS_AVCC_VREFNEG_VSS,
     ADC_INPUT_A14,
-                                        false);
+                                    false);
     ADC14_configureConversionMemory(ADC_MEM15, ADC_VREFPOS_AVCC_VREFNEG_VSS,
     ADC_INPUT_A15,
-                                        false);
+                                    false);
 
     /* Configuring Sample Timer */
     ADC14_enableSampleTimer(ADC_MANUAL_ITERATION);
@@ -95,7 +94,6 @@ void setup(void)
     ADC14_enableInterrupt(ADC_INT15);
     Interrupt_enableInterrupt(INT_ADC14);
 
-
     // 1s periodic Timer32
     Timer32_initModule(TIMER32_0_BASE, TIMER32_PRESCALER_1, TIMER32_32BIT,
     TIMER32_PERIODIC_MODE);
@@ -106,11 +104,11 @@ void setup(void)
 
     // 5ms TimerA
     const Timer_A_UpModeConfig upConfig = { TIMER_A_CLOCKSOURCE_SMCLK,
-                                                TIMER_A_CLOCKSOURCE_DIVIDER_1,
-                                                15000,
-                                                TIMER_A_TAIE_INTERRUPT_DISABLE,
-                                                TIMER_A_CCIE_CCR0_INTERRUPT_ENABLE,
-                                                TIMER_A_DO_CLEAR };
+    TIMER_A_CLOCKSOURCE_DIVIDER_1,
+                                            15000,
+                                            TIMER_A_TAIE_INTERRUPT_DISABLE,
+                                            TIMER_A_CCIE_CCR0_INTERRUPT_ENABLE,
+                                            TIMER_A_DO_CLEAR };
     Timer_A_configureUpMode(TIMER_A2_BASE, &upConfig);
     Timer_A_enableInterrupt(INT_TA2_0);
 
@@ -132,7 +130,7 @@ void loop(void)
     commandInstruction(CLEAR_DISPLAY_MASK);
     delayMicroSec(SHORT_INSTR_DELAY);
     commandInstruction(RETURN_HOME_MASK);
-    delayMicroSec(LONG_INSTR_DELAY);
+    delayMicroSec(SHORT_INSTR_DELAY);
 
     if (usePotentiometerCircuit)
     {
@@ -152,6 +150,7 @@ void loop(void)
     sprintf(dnum, ": %d", curADCResult);
     printString(dnum, 7);
     commandInstruction(SET_CURSOR_MASK | LINE2_OFFSET);
+    delayMicroSec(SHORT_INSTR_DELAY);
 
     normalizedADCRes = (curADCResult * 3.3) / 16384;
     char anum[13];
@@ -240,5 +239,5 @@ void TA2_0_IRQHandler(void)
     debounced = true;
 //    Timer_A_stopTimer(TIMER_A0_BASE);
     Timer_A_clearCaptureCompareInterrupt(TIMER_A2_BASE,
-                                             TIMER_A_CAPTURECOMPARE_REGISTER_0);
+    TIMER_A_CAPTURECOMPARE_REGISTER_0);
 }

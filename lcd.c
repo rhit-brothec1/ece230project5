@@ -81,6 +81,14 @@ void writeInstruction(uint8_t mode, uint8_t instruction)
     GPIO_setOutputHighOnPin(DB_Port, instruction);
     delayMicroSec(1);
     GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+
+    GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
+
+    GPIO_setOutputHighOnPin(EN_Port, EN_Pin);
+    GPIO_setOutputHighOnPin(DB_Port, instruction << 4);
+    delayMicroSec(1);
+    GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+
     instructionDelay(mode, instruction);
 }
 
@@ -112,19 +120,28 @@ void initLCD(void)
 {
     delayMilliSec(40);
     // 8-bit, 2-line, 5x8 font
-    commandInstruction(FUNCTION_SET_MASK | DL_FLAG_MASK | N_FLAG_MASK);
+    commandInstruction(FUNCTION_SET_MASK | N_FLAG_MASK);
+    delayMilliSec(5);
+//    commandInstruction(0x038);
+    commandInstruction(FUNCTION_SET_MASK | N_FLAG_MASK);
     delayMilliSec(5);
     // Display off
     commandInstruction(DISPLAY_CTRL_MASK);
+//    commandInstruction(0x008);
     delayMicroSec(150);
     // Display clear
+//    commandInstruction(0x001);
     commandInstruction(CLEAR_DISPLAY_MASK);
     delayMicroSec(SHORT_INSTR_DELAY);
     // Entry mode: cursor increment and no shift
+//    commandInstruction(0x006);
     commandInstruction(ENTRY_MODE_MASK | ID_FLAG_MASK);
+    delayMicroSec(SHORT_INSTR_DELAY);
+
     // Initialization complete, turn ON display
     delayMicroSec(LONG_INSTR_DELAY);
     commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK);
+    delayMilliSec(5);
 }
 
 void printChar(char character)
@@ -143,5 +160,3 @@ void printString(char *chars, int length)
         }
     }
 }
-
-// TODO: printString?
