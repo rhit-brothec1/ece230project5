@@ -83,6 +83,7 @@ void writeInstruction(uint8_t mode, uint8_t instruction)
     GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
 
     GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
+//    delayMicroSec(1);
 
     GPIO_setOutputHighOnPin(EN_Port, EN_Pin);
     GPIO_setOutputHighOnPin(DB_Port, instruction << 4);

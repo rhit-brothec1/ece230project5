@@ -122,11 +122,11 @@ void setup(void)
 
 void loop(void)
 {
-//    while(!update)
-    while (TIMER32_1->VALUE > 1000)
+    while (TIMER32_1->VALUE > 100)
     {
     }
-    update = false;
+    ADC14_toggleConversionTrigger();
+//    update = false;
     commandInstruction(CLEAR_DISPLAY_MASK);
     delayMicroSec(SHORT_INSTR_DELAY);
     commandInstruction(RETURN_HOME_MASK);
@@ -184,22 +184,16 @@ void ADC14_IRQHandler(void)
         {
             curADCResult = MAP_ADC14_getResult(ADC_MEM14);
         }
-
-        ADC14_toggleConversionTrigger();
     }
     // Potentiometer
     if (ADC_INT15 & status)
     {
         if (usePotentiometerCircuit)
         {
-            // Max: ~16383, Min: ~0
             curADCResult = MAP_ADC14_getResult(ADC_MEM15);
         }
 
-        ADC14_toggleConversionTrigger();
     }
-//    normalizedADCRes = (curADCResult * 3.3) / 16384;
-//    update = true;
 }
 
 /*!
