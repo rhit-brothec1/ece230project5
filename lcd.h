@@ -1,8 +1,8 @@
 /*!
  * lcd.h
  *
- *      Description: Header file for LCD library. For Hitachi HD44780 parallel LCD
- *               in 8-bit mode.
+ *      Description: Header file for LCD library. For Hitachi HD44780 parallel
+ *      LCD in 8-bit mode.
  *
  *      Author: ece230
  */
@@ -25,9 +25,6 @@ extern "C"
 #define DATA_MODE       1
 #define LINE1_OFFSET    0x0
 #define LINE2_OFFSET    0x40
-
-#define LONG_INSTR_DELAY    2000
-#define SHORT_INSTR_DELAY   50
 
 /* Instruction masks */
 #define CLEAR_DISPLAY_MASK  0x01
@@ -121,19 +118,39 @@ extern void configLCD(uint_fast8_t rsPort, uint_fast16_t rsPin,
 extern void initLCD(void);
 
 /*!
- *  \brief This function prints character to current cursor position
+ *  \brief This function prints a character to current cursor position
  *
- *  This function prints ASCII character to current cursor position on LCD.
+ *  This function prints an ASCII character to current cursor position on LCD.
  *
- *  \param character is the character to display on LCD
+ *  \param character is the character to display on the LCD
  *
  *  \return None
  */
 extern void printChar(char character);
 
+/*!
+ *  \brief This function prints a String to current cursor position
+ *
+ *  This function prints a string of ASCII characters on LCD. If the character
+ *  is 0, it is skipped.
+ *
+ *  \param chars is the String or character array to display on the LCD
+ *  \param length is the length of the String
+ *
+ *  \return None
+ */
 extern void printString(char* chars, int length);
 
-extern void commandInstruction(uint8_t command);
+/*!
+ * Function to write command instruction to LCD.
+ *
+ * \param command   Command instruction to write to LCD
+ * \param init      Whether the instruction is part of the first
+ *                  few initialization instructions.
+ *
+ * \return None
+ */
+extern void commandInstruction(uint8_t command, bool init);
 
 //*****************************************************************************
 //

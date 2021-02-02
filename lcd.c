@@ -1,10 +1,12 @@
 /*!
  * lcd.c
  *
- *      Description: Helper file for LCD library. For Hitachi HD44780 parallel LCD
- *               in 8-bit mode.
+ *      Description: Helper file for LCD library. For Hitachi HD44780 parallel
+ *      LCD in 4-bit mode.
  *
  *      Author: ece230
+ *      Edited by: Cooper Brotherton
+ *      Date: February 1, 2021
  */
 
 /* DriverLib Includes */
@@ -15,8 +17,8 @@
 
 #define NONHOME_MASK        0xFC
 
-//#define LONG_INSTR_DELAY    2000
-//#define SHORT_INSTR_DELAY   50
+#define LONG_INSTR_DELAY    2000
+#define SHORT_INSTR_DELAY   50
 
 uint_fast8_t RS_Port, EN_Port, DB_Port;
 uint_fast16_t RS_Pin, EN_Pin;
@@ -63,10 +65,12 @@ void instructionDelay(uint8_t mode, uint8_t instruction)
  *
  * \param mode          Write mode: 0 - control, 1 - data
  * \param instruction   Instruction/data to write to LCD
+ * \param init          Whether the instruction part of the first
+ *                      initialization instructions
  *
  * \return None
  */
-void writeInstruction(uint8_t mode, uint8_t instruction)
+void writeInstruction(uint8_t mode, uint8_t instruction, bool init)
 {
     GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
     if (mode == DATA_MODE)
@@ -81,28 +85,22 @@ void writeInstruction(uint8_t mode, uint8_t instruction)
     GPIO_setOutputHighOnPin(DB_Port, instruction);
     delayMicroSec(1);
     GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
-
-    GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
-//    delayMicroSec(1);
-
-    GPIO_setOutputHighOnPin(EN_Port, EN_Pin);
-    GPIO_setOutputHighOnPin(DB_Port, instruction << 4);
-    delayMicroSec(1);
-    GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+    // 4-bit operation requires two writes to DB4-7
+    if (!init)
+    {
+        GPIO_setOutputLowOnPin(DB_Port, PIN_ALL8);
+        GPIO_setOutputHighOnPin(EN_Port, EN_Pin);
+        GPIO_setOutputHighOnPin(DB_Port, instruction << 4);
+        delayMicroSec(1);
+        GPIO_setOutputLowOnPin(EN_Port, EN_Pin);
+    }
 
     instructionDelay(mode, instruction);
 }
 
-/*!
- * Function to write command instruction to LCD.
- *
- * \param command Command instruction to write to LCD
- *
- * \return None
- */
-void commandInstruction(uint8_t command)
+void commandInstruction(uint8_t command, bool init)
 {
-    writeInstruction(CTRL_MODE, command);
+    writeInstruction(CTRL_MODE, command, init);
 }
 
 /*!
@@ -114,34 +112,33 @@ void commandInstruction(uint8_t command)
  */
 void dataInstruction(uint8_t data)
 {
-    writeInstruction(DATA_MODE, data);
+    writeInstruction(DATA_MODE, data, false);
 }
 
 void initLCD(void)
 {
+    // Primary initialization for 4-bit mode
+    // See Figure 24 in Hitachi HD44780 data sheet
     delayMilliSec(40);
-    // 8-bit, 2-line, 5x8 font
-    commandInstruction(FUNCTION_SET_MASK | N_FLAG_MASK);
+    commandInstruction(0x30, true);
     delayMilliSec(5);
-//    commandInstruction(0x038);
-    commandInstruction(FUNCTION_SET_MASK | N_FLAG_MASK);
-    delayMilliSec(5);
-    // Display off
-    commandInstruction(DISPLAY_CTRL_MASK);
-//    commandInstruction(0x008);
+    commandInstruction(0x30, true);
     delayMicroSec(150);
-    // Display clear
-//    commandInstruction(0x001);
-    commandInstruction(CLEAR_DISPLAY_MASK);
+    commandInstruction(0x30, true);
     delayMicroSec(SHORT_INSTR_DELAY);
-    // Entry mode: cursor increment and no shift
-//    commandInstruction(0x006);
-    commandInstruction(ENTRY_MODE_MASK | ID_FLAG_MASK);
+    commandInstruction(0x20, true);
     delayMicroSec(SHORT_INSTR_DELAY);
 
+    // 4-bit, 2-line, 5x8 font
+    commandInstruction(FUNCTION_SET_MASK | N_FLAG_MASK, false);
+    // Display off
+    commandInstruction(DISPLAY_CTRL_MASK, false);
+    // Display clear
+    commandInstruction(CLEAR_DISPLAY_MASK, false);
+    // Cursor increment and no shift
+    commandInstruction(ENTRY_MODE_MASK | ID_FLAG_MASK, false);
     // Initialization complete, turn ON display
-    delayMicroSec(LONG_INSTR_DELAY);
-    commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK);
+    commandInstruction(DISPLAY_CTRL_MASK | D_FLAG_MASK, false);
     delayMilliSec(5);
 }
 
